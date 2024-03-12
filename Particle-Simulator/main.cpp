@@ -440,6 +440,19 @@ int main() {
         }
         });
 
+    // Load sprite texture
+    sf::Texture spriteTexture;
+    if (!spriteTexture.loadFromFile("Image/sprite.png")) {
+        // Handle error
+        std::cerr << "Could not load sprite texture\n";
+        return -1;
+    }
+
+    // Initialize sprite
+    sf::Sprite sprite;
+    sprite.setTexture(spriteTexture);
+    sprite.setPosition(640, 360); // Starting position
+
     // Create worker threads
     for (size_t i = 0; i < threadCount; ++i) {
         threads.emplace_back(updateParticleWorker, std::ref(particles), deltaTime, 1280.0, 720.0);
@@ -482,6 +495,7 @@ int main() {
         }
 
         window.draw(fpsText); // Draw the FPS counter on the window
+        window.draw(sprite); // Draw the sprite in the window
         gui.draw(); // Draw the GUI
         window.display();
 
