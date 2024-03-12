@@ -20,7 +20,6 @@ std::mutex cv_m;
 bool ready = false; // Flag to signal threads to start processing
 bool done = false;  // Flag to indicate processing is done for the current frame
 
-
 class Particle {
 public:
     double x, y; // Position
@@ -468,7 +467,7 @@ int main() {
 
         nextParticleIndex.store(0); // Reset the counter for the next frame
 
-        //compute framerate
+        // Compute framerate
         float currentTime = clock.restart().asSeconds();
         float fps = 1.0f / (currentTime);
 
@@ -483,6 +482,23 @@ int main() {
         sf::Event event;
         while (window.pollEvent(event)) {
             gui.handleEvent(event); // Pass events to the GUI
+
+            // Keyboard handling for sprite movement
+            if (event.type == sf::Event::KeyPressed) {
+                float moveSpeed = 5.0f; // Adjust speed
+                if (event.key.code == sf::Keyboard::W || event.key.code == sf::Keyboard::Up) {
+                    sprite.move(0, -moveSpeed); // Move up
+                }
+                else if (event.key.code == sf::Keyboard::S || event.key.code == sf::Keyboard::Down) {
+                    sprite.move(0, moveSpeed); // Move down
+                }
+                else if (event.key.code == sf::Keyboard::A || event.key.code == sf::Keyboard::Left) {
+                    sprite.move(-moveSpeed, 0); // Move left
+                }
+                else if (event.key.code == sf::Keyboard::D || event.key.code == sf::Keyboard::Right) {
+                    sprite.move(moveSpeed, 0); // Move right
+                }
+            }
 
             if (event.type == sf::Event::Closed)
                 window.close();
@@ -504,7 +520,6 @@ int main() {
         window.draw(sprite); // Draw the sprite in the window
         gui.draw(); // Draw the GUI
         window.display();
-
     }
 
     // Cleanup: Signal threads to exit and join them
