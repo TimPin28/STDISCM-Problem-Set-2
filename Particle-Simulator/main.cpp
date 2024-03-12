@@ -21,13 +21,6 @@ bool ready = false; // Flag to signal threads to start processing
 bool done = false;  // Flag to indicate processing is done for the current frame
 
 
-class Wall {
-public:
-    sf::Vector2f start, end;
-
-    Wall(float x1, float y1, float x2, float y2) : start(x1, y1), end(x2, y2) {}
-};
-
 class Particle {
 public:
     double x, y; // Position
@@ -42,7 +35,7 @@ public:
         vy = -velocity * sin(rad);
     }
 
-    void updatePosition(double deltaTime, double simWidth, double simHeight, const std::vector<Wall>& walls) {
+    void updatePosition(double deltaTime, double simWidth, double simHeight) {
         double nextX = x + vx * deltaTime;
         double nextY = y + vy * deltaTime;
 
@@ -50,101 +43,14 @@ public:
         if (nextX - radius < 0 || nextX + radius > simWidth) vx = -vx;
         if (nextY - radius < 0 || nextY + radius > simHeight) vy = -vy;
 
-        // Wall collision with direct calculation
-        for (const auto& wall : walls) {
-            sf::Vector2f collisionPoint;
-            if (directCollisionDetection(*this, wall, collisionPoint)) {
-                // Calculate wall's normal vector
-                sf::Vector2f wallDirection = wall.end - wall.start;
-                sf::Vector2f wallNormal = { -wallDirection.y, wallDirection.x };
-
-                // Normalize the wall normal
-                float length = sqrt(wallNormal.x * wallNormal.x + wallNormal.y * wallNormal.y);
-                wallNormal.x /= length;
-                wallNormal.y /= length;
-
-                // Reflect the velocity based on the wall's normal vector
-                reflectVelocity(wall);
-
-                // Adjust the position to the collision point to prevent the particle from "sinking" into the wall
-                x = collisionPoint.x;
-                y = collisionPoint.y;
-                break;
-            }
-        }
-
         // Update position
         x += vx * deltaTime;
         y += vy * deltaTime;
     }
 
-    bool directCollisionDetection(const Particle& particle, const Wall& wall, sf::Vector2f& collisionPoint) {
-        // Get start and end points of the wall
-        sf::Vector2f wallStart = wall.start;
-        sf::Vector2f wallEnd = wall.end;
-
-        // Particle's position and velocity vector
-        sf::Vector2f particlePos(particle.x, particle.y);
-        sf::Vector2f particleVelocity(particle.vx, particle.vy);
-
-        // Calculate vectors
-        sf::Vector2f wallVector = wallEnd - wallStart;
-        sf::Vector2f particleVector = particleVelocity;
-
-        // Calculate determinants
-        float det = (-wallVector.x * particleVector.y + particleVector.x * wallVector.y);
-        if (std::abs(det) < 1e-9) {
-            return false; // Parallel movement, no collision
-        }
-
-        // Calculate relative position using Cramer's rule
-        sf::Vector2f relativePos = particlePos - wallStart;
-        float t = (-particleVector.y * relativePos.x + particleVector.x * relativePos.y) / det;
-        float u = (wallVector.x * relativePos.y - wallVector.y * relativePos.x) / det;
-
-        // Check if intersection point is within the segment and particle's path
-        if (t >= 0.0f && t <= 1.0f && u >= 0.0f && u <= 1.0f) {
-            // Calculate the collision point without considering the radius
-            sf::Vector2f rawCollisionPoint = wallStart + t * wallVector;
-
-            // Adjust the collision point for the particle's radius
-            sf::Vector2f wallNormal(-wallVector.y, wallVector.x);
-            float normalLength = std::sqrt(wallNormal.x * wallNormal.x + wallNormal.y * wallNormal.y);
-            wallNormal /= normalLength; // Normalize the wall normal
-
-            // Push the collision point out by the radius in the direction of the wall normal
-            collisionPoint = rawCollisionPoint + sf::Vector2f(wallNormal.x * particle.radius, wallNormal.y * particle.radius);
-            return true;
-        }
-
-        return false;
-    }
-
-    void reflectVelocity(const Wall& wall) {
-        sf::Vector2f D = wall.end - wall.start;
-        sf::Vector2f N(-D.y, D.x); // Normal vector
-
-        // Normalize N
-        float length = std::sqrt(N.x * N.x + N.y * N.y);
-        N.x /= length;
-        N.y /= length;
-
-        // Dot product of velocity and normal
-        float dotProduct = vx * N.x + vy * N.y;
-
-        // Reflect velocity
-        vx -= 2 * dotProduct * N.x;
-        vy -= 2 * dotProduct * N.y;
-
-        // Maintain same speed
-        float speed = std::sqrt(vx * vx + vy * vy);
-        float originalSpeed = std::sqrt(vx * vx + vy * vy);
-        vx = (vx / speed) * originalSpeed;
-        vy = (vy / speed) * originalSpeed;
-    }
 };
 
-void updateParticleWorker(std::vector<Particle>& particles, const std::vector<Wall>& walls, double deltaTime, double simWidth, double simHeight) {
+void updateParticleWorker(std::vector<Particle>& particles, double deltaTime, double simWidth, double simHeight) {
     while (!done) {
         std::unique_lock<std::mutex> lk(cv_m);
         cv.wait(lk, [] { return ready || done; });
@@ -155,7 +61,7 @@ void updateParticleWorker(std::vector<Particle>& particles, const std::vector<Wa
             if (index >= particles.size()) {
                 break;
             }
-            particles[index].updatePosition(deltaTime, simWidth, simHeight, walls);
+            particles[index].updatePosition(deltaTime, simWidth, simHeight);
         }
     }
 }
@@ -174,7 +80,6 @@ int main() {
     std::vector<std::thread> threads;
 
     std::vector<Particle> particles;
-    std::vector<Wall> walls;
 
     double deltaTime = 1; // Time step for updating particle positions
 
@@ -321,36 +226,6 @@ int main() {
     basicaddButton->setSize("18%", "4%");
     gui.add(basicaddButton);
 
-    // Wall Input Form 
-    auto wallX1EditBox = tgui::EditBox::create();
-    wallX1EditBox->setPosition("75%", "45%");
-    wallX1EditBox->setSize("18%", "4%");
-    wallX1EditBox->setDefaultText("X1 Coordinate (0-1280)");
-    gui.add(wallX1EditBox);
-
-    auto wallY1EditBox = tgui::EditBox::create();
-    wallY1EditBox->setPosition("75%", "50%");
-    wallY1EditBox->setSize("18%", "4%");
-    wallY1EditBox->setDefaultText("Y1 Coordinate (0-720)");
-    gui.add(wallY1EditBox);
-
-    auto wallX2EditBox = tgui::EditBox::create();
-    wallX2EditBox->setPosition("75%", "55%");
-    wallX2EditBox->setSize("18%", "4%");
-    wallX2EditBox->setDefaultText("X2 Coordinate (0-1280)");
-    gui.add(wallX2EditBox);
-
-    auto wallY2EditBox = tgui::EditBox::create();
-    wallY2EditBox->setPosition("75%", "60%");
-    wallY2EditBox->setSize("18%", "4%");
-    wallY2EditBox->setDefaultText("Y2 Coordinate (0-720)");
-    gui.add(wallY2EditBox);
-
-    auto addWallButton = tgui::Button::create("Add Wall");
-    addWallButton->setPosition("75%", "65%"); // Adjust the percentage for layout
-    addWallButton->setSize("18%", "4%");
-    gui.add(addWallButton);
-
     //Checkbox event handler
     toggleCheckbox->onChange([&](bool checked) {
         if (checked) {
@@ -377,12 +252,6 @@ int main() {
             basicAngleEditBox->setVisible(false);
             basicVelocityEditBox->setVisible(false);
             basicaddButton->setVisible(false);
-
-            wallX1EditBox->setVisible(false);
-            wallY1EditBox->setVisible(false);
-            wallX2EditBox->setVisible(false);
-            wallY2EditBox->setVisible(false);
-            addWallButton->setVisible(false);
         }
         else {
             // Show the input boxes
@@ -408,12 +277,6 @@ int main() {
             basicAngleEditBox->setVisible(true);
             basicVelocityEditBox->setVisible(true);
             basicaddButton->setVisible(true);
-
-            wallX1EditBox->setVisible(true);
-            wallY1EditBox->setVisible(true);
-            wallX2EditBox->setVisible(true);
-            wallY2EditBox->setVisible(true);
-            addWallButton->setVisible(true);
         }
         });
 
@@ -577,48 +440,9 @@ int main() {
         }
         });
 
-    // Attach an event handler to the "Add Wall" button
-    addWallButton->onPress([&]() {
-        try {
-            float x1 = std::stof(wallX1EditBox->getText().toStdString());
-            float y1 = std::stof(wallY1EditBox->getText().toStdString());
-            float x2 = std::stof(wallX2EditBox->getText().toStdString());
-            float y2 = std::stof(wallY2EditBox->getText().toStdString());
-
-            // Check if the coordinates are within the simulation boundaries
-            if (x1 < 0 || x1 > 1280 || y1 < 0 || y1 > 720 ||
-                x2 < 0 || x2 > 1280 || y2 < 0 || y2 > 720) {
-                throw std::invalid_argument("Wall coordinates are out of bounds.");
-            }
-
-            // Check if the wall endpoints are distinct
-            if (x1 == x2 && y1 == y2) {
-                throw std::invalid_argument("Wall start and end points cannot be the same.");
-            }
-
-            walls.push_back(Wall(x1, y1, x2, y2));
-
-            // Reset the wall input fields
-            wallX1EditBox->setText("");
-            wallY1EditBox->setText("");
-            wallX2EditBox->setText("");
-            wallY2EditBox->setText("");
-        }
-
-        catch (const std::invalid_argument& e) {
-            std::cerr << "Error adding wall: " << e.what() << std::endl;
-        }
-        catch (const std::out_of_range& e) {
-            std::cerr << "Input is out of range: " << e.what() << std::endl;
-        }
-        catch (const std::exception& e) {
-            std::cerr << "An error occurred: " << e.what() << std::endl;
-        }
-        });
-
     // Create worker threads
     for (size_t i = 0; i < threadCount; ++i) {
-        threads.emplace_back(updateParticleWorker, std::ref(particles), std::ref(walls), deltaTime, 1280.0, 720.0);
+        threads.emplace_back(updateParticleWorker, std::ref(particles), deltaTime, 1280.0, 720.0);
     }
 
     while (window.isOpen()) {
@@ -655,15 +479,6 @@ int main() {
             shape.setFillColor(sf::Color::Green);
             shape.setPosition(static_cast<float>(particle.x - particle.radius), static_cast<float>(particle.y - particle.radius));
             window.draw(shape);
-        }
-        // Draw walls
-        for (const auto& wall : walls) {
-            sf::VertexArray line(sf::Lines, 2);
-            line[0].position = sf::Vector2f(wall.start.x, wall.start.y);
-            line[0].color = sf::Color::White;
-            line[1].position = sf::Vector2f(wall.end.x, wall.end.y);
-            line[1].color = sf::Color::White;
-            window.draw(line);
         }
 
         window.draw(fpsText); // Draw the FPS counter on the window
