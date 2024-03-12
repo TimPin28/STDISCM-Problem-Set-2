@@ -453,6 +453,12 @@ int main() {
     sprite.setTexture(spriteTexture);
     sprite.setPosition(640, 360); // Starting position
 
+    // Scale the sprite
+    sf::Vector2u textureSize = spriteTexture.getSize();
+    float desiredWidth = 10.0f; // Set width
+    float scale = desiredWidth / textureSize.x;
+    sprite.setScale(scale, scale); // Apply scaling
+
     // Create worker threads
     for (size_t i = 0; i < threadCount; ++i) {
         threads.emplace_back(updateParticleWorker, std::ref(particles), deltaTime, 1280.0, 720.0);
