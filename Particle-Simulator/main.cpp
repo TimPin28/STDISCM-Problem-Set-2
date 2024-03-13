@@ -19,6 +19,7 @@ std::condition_variable cv;
 std::mutex cv_m;
 bool ready = false; // Flag to signal threads to start processing
 bool done = false;  // Flag to indicate processing is done for the current frame
+bool devMode = true; // Flag to enable developer mode, false for explorer mode
 
 class Particle {
 public:
@@ -109,6 +110,28 @@ int main() {
     auto renderer = toggleCheckbox->getRenderer();
     renderer->setTextColor(sf::Color::White);
 
+    // Check box to toggle between modes
+    auto devModeCheckbox = tgui::CheckBox::create();
+    devModeCheckbox->setPosition("25%", "1%");
+    devModeCheckbox->setText("Developer Mode");
+    gui.add(devModeCheckbox);
+
+    auto devModeRenderer = devModeCheckbox->getRenderer();
+    devModeRenderer->setTextColor(sf::Color::White);
+    devModeCheckbox->setChecked(true);
+
+    // Checkbox event handler for devMode
+    devModeCheckbox->onChange([&](bool checked) {
+        if (checked) {
+			devMode = true;
+            devModeCheckbox->setText("Developer Mode");
+		}
+        else {
+			devMode = false;
+            devModeCheckbox->setText("Explorer Mode");
+		}
+		});
+    
     // Widgets for input fields
 
     // Particle Input Form 1
