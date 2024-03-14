@@ -19,7 +19,7 @@ std::condition_variable cv;
 std::mutex cv_m;
 bool ready = false; // Flag to signal threads to start processing
 bool done = false;  // Flag to indicate processing is done for the current frame
-bool devMode = true; // Flag to enable developer mode, false for explorer mode
+bool explorerMode = false; // Flag to enable explorer mode
 
 class Particle {
 public:
@@ -50,19 +50,6 @@ public:
 
 };
 
-void drawParticlesInExplorerMode(sf::RenderWindow& window, const std::vector<Particle>& particles, const sf::Sprite& sprite) {
-    sf::Vector2f spritePos = sprite.getPosition();
-    for (const auto& particle : particles) {
-        double xPos = particle.x + (window.getSize().x / 2 - spritePos.x);
-        double yPos = particle.y + (window.getSize().y / 2 - spritePos.y);
-
-        sf::CircleShape shape(particle.radius);
-        shape.setFillColor(sf::Color::Green);
-        shape.setPosition(static_cast<float>(xPos - particle.radius), static_cast<float>(yPos - particle.radius));
-        window.draw(shape);
-    }
-}
-
 void updateParticleWorker(std::vector<Particle>& particles, double deltaTime, double simWidth, double simHeight) {
     while (!done) {
         std::unique_lock<std::mutex> lk(cv_m);
@@ -88,11 +75,6 @@ void startFrame() {
 int main() {
     // Initialize window size
     sf::Vector2u windowSize(1280, 720);
-    if (!devMode) {
-        windowSize.x = 33 * 2 * 5; // 33 columns, 2 particles per column, 5 pixels per particle
-        windowSize.y = 19 * 2 * 5; // 19 rows, 2 particles per row, 5 pixels per particle
-    }
-
     sf::RenderWindow window(sf::VideoMode(windowSize.x, windowSize.y), "Particle Simulator");
 
     size_t threadCount = std::thread::hardware_concurrency(); // Use the number of concurrent threads supported by the hardware
@@ -100,10 +82,6 @@ int main() {
     std::vector<std::thread> threads;
 
     std::vector<Particle> particles;
-
-    // Initialize particles for both modes
-    std::vector<Particle> developerParticles;
-    std::vector<Particle> explorerParticles;
 
     double deltaTime = 1; // Time step for updating particle positions
 
@@ -133,28 +111,6 @@ int main() {
 
     auto renderer = toggleCheckbox->getRenderer();
     renderer->setTextColor(sf::Color::White);
-
-    // Check box to toggle between modes
-    auto devModeCheckbox = tgui::CheckBox::create();
-    devModeCheckbox->setPosition("25%", "1%");
-    devModeCheckbox->setText("Developer Mode");
-    gui.add(devModeCheckbox);
-
-    auto devModeRenderer = devModeCheckbox->getRenderer();
-    devModeRenderer->setTextColor(sf::Color::White);
-    devModeCheckbox->setChecked(true);
-
-    // Checkbox event handler for devMode
-    devModeCheckbox->onChange([&](bool checked) {
-        if (checked) {
-			devMode = true;
-            devModeCheckbox->setText("Developer Mode");
-		}
-        else {
-			devMode = false;
-            devModeCheckbox->setText("Explorer Mode");
-		}
-		});
     
     // Widgets for input fields
 
@@ -510,9 +466,36 @@ int main() {
         threads.emplace_back(updateParticleWorker, std::ref(particles), deltaTime, 1280.0, 720.0);
     }
 
+    // Views for developer and explorer modes
+    sf::View developerView(sf::FloatRect(0, 0, 1280, 720));
+    sf::View explorerView(sf::FloatRect(640, 360, 33.f, 19.f));
+
     while (window.isOpen()) {
 
         nextParticleIndex.store(0); // Reset the counter for the next frame
+
+        // Event handling
+        sf::Event toggleMode;
+        while (window.pollEvent(toggleMode)) {
+            gui.handleEvent(toggleMode);
+            if (toggleMode.type == sf::Event::Closed) {
+                window.close();
+            }
+            else if (toggleMode.type == sf::Event::KeyPressed && toggleMode.key.code == sf::Keyboard::E) {
+                // Toggle explorer mode on key press 'E'
+                explorerMode = !explorerMode;
+
+                // Adjust view based on mode
+                if (explorerMode) {
+                    window.setView(explorerView);
+                }
+                else {
+                    window.setView(developerView);
+                }
+            }
+        }
+
+        window.clear();
 
         // Compute framerate
         float currentTime = clock.restart().asSeconds();
@@ -554,7 +537,7 @@ int main() {
         startFrame(); // Signal threads to start processing
         ready = false; // Threads are now processing
 
-        window.clear();
+        //window.clear();
 
         //Draw particles
         for (const auto& particle : particles) {
@@ -564,10 +547,10 @@ int main() {
             window.draw(shape);
         }
 
-        //drawParticlesInExplorerMode(window, particles, sprite);
-
         window.draw(fpsText); // Draw the FPS counter on the window
-        window.draw(sprite); // Draw the sprite in the window
+        if (explorerMode) {
+            window.draw(sprite); // Draw the sprite in the window
+		}
         gui.draw(); // Draw the GUI
         window.display();
     }
@@ -576,6 +559,7 @@ int main() {
     done = true;
     ready = true; // Ensure threads are not stuck waiting
     cv.notify_all();
+
     for (auto& thread : threads) {
         thread.join();
     }
