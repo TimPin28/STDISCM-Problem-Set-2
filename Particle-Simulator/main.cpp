@@ -50,6 +50,19 @@ public:
 
 };
 
+void drawParticlesInExplorerMode(sf::RenderWindow& window, const std::vector<Particle>& particles, const sf::Sprite& sprite) {
+    sf::Vector2f spritePos = sprite.getPosition();
+    for (const auto& particle : particles) {
+        double xPos = particle.x + (window.getSize().x / 2 - spritePos.x);
+        double yPos = particle.y + (window.getSize().y / 2 - spritePos.y);
+
+        sf::CircleShape shape(particle.radius);
+        shape.setFillColor(sf::Color::Green);
+        shape.setPosition(static_cast<float>(xPos - particle.radius), static_cast<float>(yPos - particle.radius));
+        window.draw(shape);
+    }
+}
+
 void updateParticleWorker(std::vector<Particle>& particles, double deltaTime, double simWidth, double simHeight) {
     while (!done) {
         std::unique_lock<std::mutex> lk(cv_m);
@@ -73,13 +86,24 @@ void startFrame() {
 }
 
 int main() {
-    sf::RenderWindow window(sf::VideoMode(1280, 720), "Particle Simulator");
+    // Initialize window size
+    sf::Vector2u windowSize(1280, 720);
+    if (!devMode) {
+        windowSize.x = 33 * 2 * 5; // 33 columns, 2 particles per column, 5 pixels per particle
+        windowSize.y = 19 * 2 * 5; // 19 rows, 2 particles per row, 5 pixels per particle
+    }
+
+    sf::RenderWindow window(sf::VideoMode(windowSize.x, windowSize.y), "Particle Simulator");
 
     size_t threadCount = std::thread::hardware_concurrency(); // Use the number of concurrent threads supported by the hardware
 
     std::vector<std::thread> threads;
 
     std::vector<Particle> particles;
+
+    // Initialize particles for both modes
+    std::vector<Particle> developerParticles;
+    std::vector<Particle> explorerParticles;
 
     double deltaTime = 1; // Time step for updating particle positions
 
@@ -531,6 +555,7 @@ int main() {
         ready = false; // Threads are now processing
 
         window.clear();
+
         //Draw particles
         for (const auto& particle : particles) {
             sf::CircleShape shape(particle.radius);
@@ -538,6 +563,8 @@ int main() {
             shape.setPosition(static_cast<float>(particle.x - particle.radius), static_cast<float>(particle.y - particle.radius));
             window.draw(shape);
         }
+
+        //drawParticlesInExplorerMode(window, particles, sprite);
 
         window.draw(fpsText); // Draw the FPS counter on the window
         window.draw(sprite); // Draw the sprite in the window
