@@ -308,7 +308,7 @@ int main() {
                 float yPos = y1 + i * yStep; // Calculate the y position for each particle
 
                 // Add each particle to the simulation
-                particles.push_back(Particle(xPos, yPos, angle, velocity, 5));// radius is 5
+                particles.push_back(Particle(xPos, yPos, angle, velocity, 1));// radius is 5
             }
 
             // Clear the edit boxes after adding particles
@@ -354,7 +354,7 @@ int main() {
                 double angleRad = angle * (M_PI / 180.0); // Convert angle from degrees to radians              
 
                 // Add each particle to the simulation
-                particles.push_back(Particle(startPoint.x, startPoint.y, angle, velocity, 5)); // radius is 5
+                particles.push_back(Particle(startPoint.x, startPoint.y, angle, velocity, 1)); // radius is 5
             }
 
             // Clear the edit boxes after adding particles
@@ -393,7 +393,7 @@ int main() {
                 double angleRad = angle * (M_PI / 180.0); // Convert angle from degrees to radians
 
                 // Add each particle to the simulation
-                particles.push_back(Particle(startPoint.x, startPoint.y, angle, velocity, 5)); // radius is 5
+                particles.push_back(Particle(startPoint.x, startPoint.y, angle, velocity, 1)); // radius is 5
             }
 
             // Clear the edit boxes after adding particles
@@ -420,11 +420,11 @@ int main() {
             if (xPos < 0 || xPos > 1280) throw std::invalid_argument("X coordinate must be between 0 and 1280.");
             if (yPos < 0 || yPos > 720) throw std::invalid_argument("Y coordinate must be between 0 and 720.");
             if (angle < 0 || angle > 360) throw std::invalid_argument("Angle must be between 0 and 360.");
-            if (velocity <= 0) throw std::invalid_argument("Velocity must be greater than 0.");
+            if (velocity < 0) throw std::invalid_argument("Velocity must be greater than 0.");
             if (velocity >= 176) throw std::invalid_argument("Start Velocity must be less than or equal 175.");
 
             // Add particle to the simulation
-            particles.push_back(Particle(xPos, yPos, angle, velocity, 5)); // radius is 5
+            particles.push_back(Particle(xPos, yPos, angle, velocity, 1)); // radius is 5
 
             // Clear the edit boxes after adding particles
             basicX1PosEditBox->setText("");
@@ -453,49 +453,60 @@ int main() {
     // Initialize sprite
     sf::Sprite sprite;
     sprite.setTexture(spriteTexture);
-    sprite.setPosition(640, 360); // Starting position
+    sprite.setPosition(windowSize.x / 2.f, windowSize.y / 2.f); // Starting position
 
     // Scale the sprite
     sf::Vector2u textureSize = spriteTexture.getSize();
-    float desiredWidth = 10.0f; // Set width
+    float desiredWidth = 1.f; // Set width
     float scale = desiredWidth / textureSize.x;
     sprite.setScale(scale, scale); // Apply scaling
+
+    // Views for developer and explorer modes
+    sf::View developerView(sf::FloatRect(0, 0, 1280, 720));
+    sf::View explorerView(sf::FloatRect(0, 0, 33.f, 19.f));
+    explorerView.setCenter(windowSize.x / 2.f, windowSize.y / 2.f);
 
     // Create worker threads
     for (size_t i = 0; i < threadCount; ++i) {
         threads.emplace_back(updateParticleWorker, std::ref(particles), deltaTime, 1280.0, 720.0);
     }
 
-    // Views for developer and explorer modes
-    sf::View developerView(sf::FloatRect(0, 0, 1280, 720));
-    sf::View explorerView(sf::FloatRect(640, 360, 33.f, 19.f));
-
     while (window.isOpen()) {
 
         nextParticleIndex.store(0); // Reset the counter for the next frame
 
         // Event handling
-        sf::Event toggleMode;
-        while (window.pollEvent(toggleMode)) {
-            gui.handleEvent(toggleMode);
-            if (toggleMode.type == sf::Event::Closed) {
-                window.close();
-            }
-            else if (toggleMode.type == sf::Event::KeyPressed && toggleMode.key.code == sf::Keyboard::E) {
-                // Toggle explorer mode on key press 'E'
-                explorerMode = !explorerMode;
+     //   sf::Event toggleMode;
+     //   while (window.pollEvent(toggleMode)) {
+     //       gui.handleEvent(toggleMode);
+     //       if (toggleMode.type == sf::Event::Closed) {
+     //           window.close();
+     //       }
+     //       else if (toggleMode.type == sf::Event::KeyPressed && toggleMode.key.code == sf::Keyboard::E) {
+     //           // Toggle explorer mode on key press 'E'
+     //           explorerMode = !explorerMode;
 
-                // Adjust view based on mode
-                if (explorerMode) {
-                    window.setView(explorerView);
-                }
-                else {
-                    window.setView(developerView);
-                }
-            }
-        }
-
-        window.clear();
+     //           // Adjust view based on mode
+     //           if (explorerMode) {
+     //               window.setView(explorerView);
+     //               {//Hide the input fields
+     //                   //toggleCheckbox->setVisible(false);
+     //                   //toggleCheckbox->setChecked(true);
+					//}
+     //           }
+     //           else {
+     //               window.setView(developerView);
+     //               {//Show the input fields
+     //                   toggleCheckbox->setVisible(true);
+     //                   toggleCheckbox->setChecked(false);
+     //               }
+     //           }
+     //       }
+     //   }
+        //Debug
+        explorerMode = true;
+        window.setView(explorerView);
+        window.clear();;
 
         // Compute framerate
         float currentTime = clock.restart().asSeconds();
@@ -508,14 +519,14 @@ int main() {
             fpsText.setString(ss.str());
             fpsUpdateClock.restart(); // Reset the fpsUpdateClock for the next 0.5-second interval
         }
-
+        
         sf::Event event;
         while (window.pollEvent(event)) {
             gui.handleEvent(event); // Pass events to the GUI
 
             // Keyboard handling for sprite movement
             if (event.type == sf::Event::KeyPressed) {
-                float moveSpeed = 5.0f; // Adjust speed
+                float moveSpeed = 2.0f; // Adjust speed
                 if (event.key.code == sf::Keyboard::W || event.key.code == sf::Keyboard::Up) {
                     sprite.move(0, -moveSpeed); // Move up
                 }
@@ -530,15 +541,19 @@ int main() {
                 }
             }
 
+            // Adjust the view to center on the sprite's position
+            sf::Vector2f spritePosition = sprite.getPosition();
+            sf::Vector2f viewCenter = explorerView.getCenter();
+            explorerView.setCenter(spritePosition);
+            window.setView(explorerView);
+
             if (event.type == sf::Event::Closed)
                 window.close();
         }
 
         startFrame(); // Signal threads to start processing
         ready = false; // Threads are now processing
-
-        //window.clear();
-
+        
         //Draw particles
         for (const auto& particle : particles) {
             sf::CircleShape shape(particle.radius);
@@ -547,10 +562,11 @@ int main() {
             window.draw(shape);
         }
 
-        window.draw(fpsText); // Draw the FPS counter on the window
         if (explorerMode) {
             window.draw(sprite); // Draw the sprite in the window
-		}
+        }
+
+        window.draw(fpsText); // Draw the FPS counter on the window
         gui.draw(); // Draw the GUI
         window.display();
     }
