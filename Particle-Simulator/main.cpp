@@ -503,9 +503,11 @@ int main() {
      //           }
      //       }
      //   }
-        //Debug
+     // 
+        //Debug simulating explorer mode
         explorerMode = true;
         window.setView(explorerView);
+
         window.clear();;
 
         // Compute framerate
