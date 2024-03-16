@@ -505,9 +505,8 @@ int main() {
      //   }
      // 
         //Debug simulating explorer mode
-        explorerMode = true;
-        window.setView(explorerView);
-
+        explorerMode = true;     
+        //window.setView(explorerView);
         window.clear();;
 
         // Compute framerate
@@ -567,7 +566,7 @@ int main() {
         if (explorerMode) {
             window.draw(sprite); // Draw the sprite in the window
         }
-
+      
         window.draw(fpsText); // Draw the FPS counter on the window
         gui.draw(); // Draw the GUI
         window.display();
