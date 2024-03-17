@@ -471,6 +471,9 @@ int main() {
         threads.emplace_back(updateParticleWorker, std::ref(particles), deltaTime, 1280.0, 720.0);
     }
 
+    sf::View uiView(sf::FloatRect(0, 0, windowSize.x, windowSize.y));
+
+
     while (window.isOpen()) {
 
         nextParticleIndex.store(0); // Reset the counter for the next frame
@@ -505,8 +508,8 @@ int main() {
      //   }
      // 
         //Debug simulating explorer mode
-        explorerMode = true;     
-        //window.setView(explorerView);
+        explorerMode = false;     
+        window.setView(explorerView);
         window.clear();;
 
         // Compute framerate
@@ -560,14 +563,18 @@ int main() {
             sf::CircleShape shape(particle.radius);
             shape.setFillColor(sf::Color::Green);
             shape.setPosition(static_cast<float>(particle.x - particle.radius), static_cast<float>(particle.y - particle.radius));
-            window.draw(shape);
+            window.draw(shape);`
         }
 
         if (explorerMode) {
             window.draw(sprite); // Draw the sprite in the window
         }
       
+        // Draw the FPS counter in a fixed position
+        window.setView(uiView);
         window.draw(fpsText); // Draw the FPS counter on the window
+        window.setView(explorerMode ? explorerView : developerView); // Switch back to the main view
+
         gui.draw(); // Draw the GUI
         window.display();
     }
