@@ -563,7 +563,7 @@ int main() {
             sf::CircleShape shape(particle.radius);
             shape.setFillColor(sf::Color::Green);
             shape.setPosition(static_cast<float>(particle.x - particle.radius), static_cast<float>(particle.y - particle.radius));
-            window.draw(shape);`
+            window.draw(shape);
         }
 
         if (explorerMode) {
