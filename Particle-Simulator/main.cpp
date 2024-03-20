@@ -503,38 +503,48 @@ int main() {
 
         nextParticleIndex.store(0); // Reset the counter for the next frame
 
-        // Event handling
-     //   sf::Event toggleMode;
-     //   while (window.pollEvent(toggleMode)) {
-     //       gui.handleEvent(toggleMode);
-     //       if (toggleMode.type == sf::Event::Closed) {
-     //           window.close();
-     //       }
-     //       else if (toggleMode.type == sf::Event::KeyPressed && toggleMode.key.code == sf::Keyboard::E) {
-     //           // Toggle explorer mode on key press 'E'
-     //           explorerMode = !explorerMode;
+        sf::Event event;
+        while (window.pollEvent(event)) {
+            gui.handleEvent(event);
 
-     //           // Adjust view based on mode
-     //           if (explorerMode) {
-     //               window.setView(explorerView);
-     //               {//Hide the input fields
-     //                   //toggleCheckbox->setVisible(false);
-     //                   //toggleCheckbox->setChecked(true);
-					//}
-     //           }
-     //           else {
-     //               window.setView(developerView);
-     //               {//Show the input fields
-     //                   toggleCheckbox->setVisible(true);
-     //                   toggleCheckbox->setChecked(false);
-     //               }
-     //           }
-     //       }
-     //   }
-     // 
+            if (event.type == sf::Event::Closed) {
+                window.close();
+            }
+
+            if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::E) {
+                // Toggle explorer mode on key press 'E'
+                explorerMode = !explorerMode;
+                window.setView(explorerMode ? explorerView : developerView);
+                toggleCheckbox->setVisible(!explorerMode);
+                toggleCheckbox->setChecked(explorerMode);
+            }
+
+            // Handle sprite movement if in explorer mode
+            if (explorerMode && event.type == sf::Event::KeyPressed) {
+                float moveSpeed = 2.0f; // Adjust speed
+                if (event.key.code == sf::Keyboard::W || event.key.code == sf::Keyboard::Up) {
+                    sprite.move(0, -moveSpeed); // Move up
+                }
+                else if (event.key.code == sf::Keyboard::S || event.key.code == sf::Keyboard::Down) {
+                    sprite.move(0, moveSpeed); // Move down
+                }
+                else if (event.key.code == sf::Keyboard::A || event.key.code == sf::Keyboard::Left) {
+                    sprite.move(-moveSpeed, 0); // Move left
+                }
+                else if (event.key.code == sf::Keyboard::D || event.key.code == sf::Keyboard::Right) {
+                    sprite.move(moveSpeed, 0); // Move right
+                }
+
+                // Adjust the view to center on the sprite's position
+                sf::Vector2f spritePosition = sprite.getPosition();
+                explorerView.setCenter(spritePosition);
+                window.setView(explorerView);
+            }
+        }
+
         //Debug simulating explorer mode
-        explorerMode = false;     
-        window.setView(explorerView);
+        //explorerMode = false;     
+        //window.setView(explorerView);
         window.clear();;
 
         // Draw the grid as the background
@@ -551,41 +561,10 @@ int main() {
             fpsText.setString(ss.str());
             fpsUpdateClock.restart(); // Reset the fpsUpdateClock for the next 0.5-second interval
         }
-        
-        sf::Event event;
-        while (window.pollEvent(event)) {
-            gui.handleEvent(event); // Pass events to the GUI
-
-            // Keyboard handling for sprite movement
-            if (event.type == sf::Event::KeyPressed) {
-                float moveSpeed = 2.0f; // Adjust speed
-                if (event.key.code == sf::Keyboard::W || event.key.code == sf::Keyboard::Up) {
-                    sprite.move(0, -moveSpeed); // Move up
-                }
-                else if (event.key.code == sf::Keyboard::S || event.key.code == sf::Keyboard::Down) {
-                    sprite.move(0, moveSpeed); // Move down
-                }
-                else if (event.key.code == sf::Keyboard::A || event.key.code == sf::Keyboard::Left) {
-                    sprite.move(-moveSpeed, 0); // Move left
-                }
-                else if (event.key.code == sf::Keyboard::D || event.key.code == sf::Keyboard::Right) {
-                    sprite.move(moveSpeed, 0); // Move right
-                }
-            }
-
-            // Adjust the view to center on the sprite's position
-            sf::Vector2f spritePosition = sprite.getPosition();
-            sf::Vector2f viewCenter = explorerView.getCenter();
-            explorerView.setCenter(spritePosition);
-            window.setView(explorerView);
-
-            if (event.type == sf::Event::Closed)
-                window.close();
-        }
 
         startFrame(); // Signal threads to start processing
         ready = false; // Threads are now processing
-        
+
         //Draw particles
         for (const auto& particle : particles) {
             sf::CircleShape shape(particle.radius);
@@ -597,7 +576,7 @@ int main() {
         if (explorerMode) {
             window.draw(sprite); // Draw the sprite in the window
         }
-      
+
         // Draw the FPS counter in a fixed position
         window.setView(uiView);
         window.draw(fpsText); // Draw the FPS counter on the window
