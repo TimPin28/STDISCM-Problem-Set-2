@@ -66,6 +66,31 @@ void updateParticleWorker(std::vector<Particle>& particles, double deltaTime, do
     }
 }
 
+void drawGrid(sf::RenderWindow& window, int gridSize) {
+    int width = window.getSize().x;
+    int height = window.getSize().y;
+    sf::Color gridColor = sf::Color(200, 200, 200, 100); // Light grey color for the grid
+
+    // Draw vertical lines
+    for (int x = 0; x <= width; x += gridSize) {
+        sf::Vertex line[] = {
+            sf::Vertex(sf::Vector2f(static_cast<float>(x), 0.f), gridColor),
+            sf::Vertex(sf::Vector2f(static_cast<float>(x), static_cast<float>(height)), gridColor)
+        };
+        window.draw(line, 2, sf::Lines);
+    }
+
+    // Draw horizontal lines
+    for (int y = 0; y <= height; y += gridSize) {
+        sf::Vertex line[] = {
+            sf::Vertex(sf::Vector2f(0.f, static_cast<float>(y)), gridColor),
+            sf::Vertex(sf::Vector2f(static_cast<float>(width), static_cast<float>(y)), gridColor)
+        };
+        window.draw(line, 2, sf::Lines);
+    }
+}
+
+
 void startFrame() {
     nextParticleIndex.store(0); // Reset the counter for the next frame
     ready = true;
@@ -511,6 +536,9 @@ int main() {
         explorerMode = false;     
         window.setView(explorerView);
         window.clear();;
+
+        // Draw the grid as the background
+        drawGrid(window, 50);
 
         // Compute framerate
         float currentTime = clock.restart().asSeconds();
