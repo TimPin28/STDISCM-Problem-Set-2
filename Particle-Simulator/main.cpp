@@ -607,7 +607,7 @@ int main() {
         }
         else {
             sf::Vector2u textureSize = spriteTexture.getSize();
-            float desiredWidth = 2.f; // Set width
+            float desiredWidth = 5.f; // Set width
             float scale = desiredWidth / textureSize.x;
             sprite.setScale(scale, scale); // Apply scaling
 
