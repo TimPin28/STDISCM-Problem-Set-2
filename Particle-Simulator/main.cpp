@@ -70,6 +70,12 @@ void drawGrid(sf::RenderWindow& window, int gridSize) {
     int width = window.getSize().x;
     int height = window.getSize().y;
     sf::Color gridColor = sf::Color(200, 200, 200, 100); // Light grey color for the grid
+    
+    sf::RectangleShape rectangle;
+    rectangle.setSize(sf::Vector2f(1280, 720));
+    rectangle.setPosition(0.f, 0.f);
+    rectangle.setFillColor(sf::Color(186, 224, 230, 100));
+    window.draw(rectangle);
 
     // Draw vertical lines
     for (int x = 0; x <= width; x += gridSize) {
@@ -125,6 +131,11 @@ int main() {
     sf::Text fpsText("", font, 20);
     fpsText.setFillColor(sf::Color::White);
     fpsText.setPosition(5.f, 5.f); // Position the FPS counter in the top-left corner
+
+    sf::Text explorerText("Press E to enter Explorer Mode", font, 20);
+    explorerText.setFillColor(sf::Color::White);
+    explorerText.setPosition(0, 720); // Position text in the bottom-left corner
+    window.draw(explorerText);
 
     tgui::Gui gui(window); // Initialize TGUI Gui object for the window
 
@@ -523,16 +534,28 @@ int main() {
             if (explorerMode && event.type == sf::Event::KeyPressed) {
                 float moveSpeed = 2.0f; // Adjust speed
                 if (event.key.code == sf::Keyboard::W || event.key.code == sf::Keyboard::Up) {
-                    sprite.move(0, -moveSpeed); // Move up
+                    if (sprite.getPosition().y > 0.00) {
+                        sprite.move(0, -moveSpeed); // Move up
+                        //std::cout << sprite.getPosition().y << std::endl;
+                    }
                 }
                 else if (event.key.code == sf::Keyboard::S || event.key.code == sf::Keyboard::Down) {
-                    sprite.move(0, moveSpeed); // Move down
+                    if (sprite.getPosition().y < 720.00) {
+                        sprite.move(0, moveSpeed); // Move down
+                        //std::cout << sprite.getPosition().y << std::endl;
+                    }
                 }
                 else if (event.key.code == sf::Keyboard::A || event.key.code == sf::Keyboard::Left) {
-                    sprite.move(-moveSpeed, 0); // Move left
+                    if (sprite.getPosition().x > 0.00) {
+                        sprite.move(-moveSpeed, 0); // Move left 
+                        //std::cout << sprite.getPosition().x << std::endl;
+                    }
                 }
                 else if (event.key.code == sf::Keyboard::D || event.key.code == sf::Keyboard::Right) {
-                    sprite.move(moveSpeed, 0); // Move right
+                    if (sprite.getPosition().x < 1280.00) {
+                        sprite.move(moveSpeed, 0); // Move right
+                        //std::cout << sprite.getPosition().x << std::endl;
+                    }
                 }
 
                 // Adjust the view to center on the sprite's position
@@ -545,7 +568,7 @@ int main() {
         //Debug simulating explorer mode
         //explorerMode = false;     
         //window.setView(explorerView);
-        window.clear();;
+        window.clear();
 
         // Draw the grid as the background
         drawGrid(window, 50);
@@ -574,6 +597,20 @@ int main() {
         }
 
         if (explorerMode) {
+            sf::Vector2u textureSize = spriteTexture.getSize();
+            float desiredWidth = 1.f; // Set width
+            float scale = desiredWidth / textureSize.x;
+            sprite.setScale(scale, scale); // Apply scaling
+
+            window.draw(sprite); // Draw the sprite in the window
+
+        }
+        else {
+            sf::Vector2u textureSize = spriteTexture.getSize();
+            float desiredWidth = 2.f; // Set width
+            float scale = desiredWidth / textureSize.x;
+            sprite.setScale(scale, scale); // Apply scaling
+
             window.draw(sprite); // Draw the sprite in the window
         }
 
