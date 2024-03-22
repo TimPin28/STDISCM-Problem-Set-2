@@ -19,6 +19,7 @@ std::condition_variable cv;
 std::mutex cv_m;
 bool ready = false; // Flag to signal threads to start processing
 bool done = false;  // Flag to indicate processing is done for the current frame
+bool explorerMode = false; // Flag to enable explorer mode
 
 class Particle {
 public:
@@ -65,6 +66,37 @@ void updateParticleWorker(std::vector<Particle>& particles, double deltaTime, do
     }
 }
 
+void drawGrid(sf::RenderWindow& window, int gridSize) {
+    int width = window.getSize().x;
+    int height = window.getSize().y;
+    sf::Color gridColor = sf::Color(200, 200, 200, 100); // Light grey color for the grid
+    
+    sf::RectangleShape rectangle;
+    rectangle.setSize(sf::Vector2f(1280, 720));
+    rectangle.setPosition(0.f, 0.f);
+    rectangle.setFillColor(sf::Color(186, 224, 230, 100));
+    window.draw(rectangle);
+
+    // Draw vertical lines
+    for (int x = 0; x <= width; x += gridSize) {
+        sf::Vertex line[] = {
+            sf::Vertex(sf::Vector2f(static_cast<float>(x), 0.f), gridColor),
+            sf::Vertex(sf::Vector2f(static_cast<float>(x), static_cast<float>(height)), gridColor)
+        };
+        window.draw(line, 2, sf::Lines);
+    }
+
+    // Draw horizontal lines
+    for (int y = 0; y <= height; y += gridSize) {
+        sf::Vertex line[] = {
+            sf::Vertex(sf::Vector2f(0.f, static_cast<float>(y)), gridColor),
+            sf::Vertex(sf::Vector2f(static_cast<float>(width), static_cast<float>(y)), gridColor)
+        };
+        window.draw(line, 2, sf::Lines);
+    }
+}
+
+
 void startFrame() {
     nextParticleIndex.store(0); // Reset the counter for the next frame
     ready = true;
@@ -72,7 +104,9 @@ void startFrame() {
 }
 
 int main() {
-    sf::RenderWindow window(sf::VideoMode(1280, 720), "Particle Simulator");
+    // Initialize window size
+    sf::Vector2u windowSize(1280, 720);
+    sf::RenderWindow window(sf::VideoMode(windowSize.x, windowSize.y), "Particle Simulator");
 
     size_t threadCount = std::thread::hardware_concurrency(); // Use the number of concurrent threads supported by the hardware
 
@@ -98,6 +132,11 @@ int main() {
     fpsText.setFillColor(sf::Color::White);
     fpsText.setPosition(5.f, 5.f); // Position the FPS counter in the top-left corner
 
+    sf::Text explorerText("Press E to enter Explorer Mode", font, 20);
+    explorerText.setFillColor(sf::Color::White);
+    explorerText.setPosition(0, 720); // Position text in the bottom-left corner
+    window.draw(explorerText);
+
     tgui::Gui gui(window); // Initialize TGUI Gui object for the window
 
     // Check box to toggle visibility of input fields
@@ -108,7 +147,7 @@ int main() {
 
     auto renderer = toggleCheckbox->getRenderer();
     renderer->setTextColor(sf::Color::White);
-
+    
     // Widgets for input fields
 
     // Particle Input Form 1
@@ -305,7 +344,7 @@ int main() {
                 float yPos = y1 + i * yStep; // Calculate the y position for each particle
 
                 // Add each particle to the simulation
-                particles.push_back(Particle(xPos, yPos, angle, velocity, 5));// radius is 5
+                particles.push_back(Particle(xPos, yPos, angle, velocity, 1));// radius is 5
             }
 
             // Clear the edit boxes after adding particles
@@ -351,7 +390,7 @@ int main() {
                 double angleRad = angle * (M_PI / 180.0); // Convert angle from degrees to radians              
 
                 // Add each particle to the simulation
-                particles.push_back(Particle(startPoint.x, startPoint.y, angle, velocity, 5)); // radius is 5
+                particles.push_back(Particle(startPoint.x, startPoint.y, angle, velocity, 1)); // radius is 5
             }
 
             // Clear the edit boxes after adding particles
@@ -390,7 +429,7 @@ int main() {
                 double angleRad = angle * (M_PI / 180.0); // Convert angle from degrees to radians
 
                 // Add each particle to the simulation
-                particles.push_back(Particle(startPoint.x, startPoint.y, angle, velocity, 5)); // radius is 5
+                particles.push_back(Particle(startPoint.x, startPoint.y, angle, velocity, 1)); // radius is 5
             }
 
             // Clear the edit boxes after adding particles
@@ -417,11 +456,11 @@ int main() {
             if (xPos < 0 || xPos > 1280) throw std::invalid_argument("X coordinate must be between 0 and 1280.");
             if (yPos < 0 || yPos > 720) throw std::invalid_argument("Y coordinate must be between 0 and 720.");
             if (angle < 0 || angle > 360) throw std::invalid_argument("Angle must be between 0 and 360.");
-            if (velocity <= 0) throw std::invalid_argument("Velocity must be greater than 0.");
+            if (velocity < 0) throw std::invalid_argument("Velocity must be greater than 0.");
             if (velocity >= 176) throw std::invalid_argument("Start Velocity must be less than or equal 175.");
 
             // Add particle to the simulation
-            particles.push_back(Particle(xPos, yPos, angle, velocity, 5)); // radius is 5
+            particles.push_back(Particle(xPos, yPos, angle, velocity, 1)); // radius is 5
 
             // Clear the edit boxes after adding particles
             basicX1PosEditBox->setText("");
@@ -450,22 +489,81 @@ int main() {
     // Initialize sprite
     sf::Sprite sprite;
     sprite.setTexture(spriteTexture);
-    sprite.setPosition(640, 360); // Starting position
+    sprite.setPosition(windowSize.x / 2.f, windowSize.y / 2.f); // Starting position
 
     // Scale the sprite
     sf::Vector2u textureSize = spriteTexture.getSize();
-    float desiredWidth = 10.0f; // Set width
+    float desiredWidth = 1.f; // Set width
     float scale = desiredWidth / textureSize.x;
     sprite.setScale(scale, scale); // Apply scaling
+
+    // Views for developer and explorer modes
+    sf::View developerView(sf::FloatRect(0, 0, 1280, 720));
+    sf::View explorerView(sf::FloatRect(0, 0, 33.f, 19.f));
+    explorerView.setCenter(windowSize.x / 2.f, windowSize.y / 2.f);
 
     // Create worker threads
     for (size_t i = 0; i < threadCount; ++i) {
         threads.emplace_back(updateParticleWorker, std::ref(particles), deltaTime, 1280.0, 720.0);
     }
 
+    sf::View uiView(sf::FloatRect(0, 0, windowSize.x, windowSize.y));
+
     while (window.isOpen()) {
 
         nextParticleIndex.store(0); // Reset the counter for the next frame
+
+        sf::Event event;
+        while (window.pollEvent(event)) {
+            gui.handleEvent(event);
+
+            if (event.type == sf::Event::Closed) {
+                window.close();
+            }
+
+            if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::E) {
+                // Toggle explorer mode on key press 'E'
+                explorerMode = !explorerMode;
+                window.setView(explorerMode ? explorerView : developerView);
+                toggleCheckbox->setVisible(!explorerMode);
+                toggleCheckbox->setChecked(explorerMode);
+            }
+
+            // Handle sprite movement if in explorer mode
+            if (explorerMode && event.type == sf::Event::KeyPressed) {
+                float moveSpeed = 2.0f; // Adjust speed
+                if (event.key.code == sf::Keyboard::W || event.key.code == sf::Keyboard::Up) {
+                    if (sprite.getPosition().y > 0.00) {
+                        sprite.move(0, -moveSpeed); // Move up
+                    }
+                }
+                else if (event.key.code == sf::Keyboard::S || event.key.code == sf::Keyboard::Down) {
+                    if (sprite.getPosition().y < 720.00) {
+                        sprite.move(0, moveSpeed); // Move down                 
+                    }
+                }
+                else if (event.key.code == sf::Keyboard::A || event.key.code == sf::Keyboard::Left) {
+                    if (sprite.getPosition().x > 0.00) {
+                        sprite.move(-moveSpeed, 0); // Move left 
+                    }
+                }
+                else if (event.key.code == sf::Keyboard::D || event.key.code == sf::Keyboard::Right) {
+                    if (sprite.getPosition().x < 1280.00) {
+                        sprite.move(moveSpeed, 0); // Move right
+                    }
+                }
+
+                // Adjust the view to center on the sprite's position
+                sf::Vector2f spritePosition = sprite.getPosition();
+                explorerView.setCenter(spritePosition);
+                window.setView(explorerView);
+            }
+        }
+
+        window.clear();
+
+        // Draw the grid as the background
+        drawGrid(window, 50);
 
         // Compute framerate
         float currentTime = clock.restart().asSeconds();
@@ -479,35 +577,9 @@ int main() {
             fpsUpdateClock.restart(); // Reset the fpsUpdateClock for the next 0.5-second interval
         }
 
-        sf::Event event;
-        while (window.pollEvent(event)) {
-            gui.handleEvent(event); // Pass events to the GUI
-
-            // Keyboard handling for sprite movement
-            if (event.type == sf::Event::KeyPressed) {
-                float moveSpeed = 5.0f; // Adjust speed
-                if (event.key.code == sf::Keyboard::W || event.key.code == sf::Keyboard::Up) {
-                    sprite.move(0, -moveSpeed); // Move up
-                }
-                else if (event.key.code == sf::Keyboard::S || event.key.code == sf::Keyboard::Down) {
-                    sprite.move(0, moveSpeed); // Move down
-                }
-                else if (event.key.code == sf::Keyboard::A || event.key.code == sf::Keyboard::Left) {
-                    sprite.move(-moveSpeed, 0); // Move left
-                }
-                else if (event.key.code == sf::Keyboard::D || event.key.code == sf::Keyboard::Right) {
-                    sprite.move(moveSpeed, 0); // Move right
-                }
-            }
-
-            if (event.type == sf::Event::Closed)
-                window.close();
-        }
-
         startFrame(); // Signal threads to start processing
         ready = false; // Threads are now processing
 
-        window.clear();
         //Draw particles
         for (const auto& particle : particles) {
             sf::CircleShape shape(particle.radius);
@@ -516,9 +588,26 @@ int main() {
             window.draw(shape);
         }
 
-        window.draw(fpsText); // Draw the FPS counter on the window
+        if (explorerMode) {
+            sf::Vector2u textureSize = spriteTexture.getSize();
+            float desiredWidth = 1.f; // Set width
+            float scale = desiredWidth / textureSize.x;
+            sprite.setScale(scale, scale); // Apply scaling
+        }
+        else {
+            sf::Vector2u textureSize = spriteTexture.getSize();
+            float desiredWidth = 5.f; // Set width
+            float scale = desiredWidth / textureSize.x;
+            sprite.setScale(scale, scale); // Apply scaling
+            gui.draw(); // Draw the GUI
+        }
+
         window.draw(sprite); // Draw the sprite in the window
-        gui.draw(); // Draw the GUI
+        // Draw the FPS counter in a fixed position
+        window.setView(uiView);
+        window.draw(fpsText); // Draw the FPS counter on the window
+        //window.draw(sprite); // Draw the sprite in the window
+        window.setView(explorerMode ? explorerView : developerView); // Switch back to the main view
         window.display();
     }
 
@@ -526,6 +615,7 @@ int main() {
     done = true;
     ready = true; // Ensure threads are not stuck waiting
     cv.notify_all();
+
     for (auto& thread : threads) {
         thread.join();
     }
