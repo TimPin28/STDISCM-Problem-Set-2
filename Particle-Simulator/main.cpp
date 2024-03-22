@@ -509,7 +509,6 @@ int main() {
 
     sf::View uiView(sf::FloatRect(0, 0, windowSize.x, windowSize.y));
 
-
     while (window.isOpen()) {
 
         nextParticleIndex.store(0); // Reset the counter for the next frame
@@ -536,25 +535,21 @@ int main() {
                 if (event.key.code == sf::Keyboard::W || event.key.code == sf::Keyboard::Up) {
                     if (sprite.getPosition().y > 0.00) {
                         sprite.move(0, -moveSpeed); // Move up
-                        //std::cout << sprite.getPosition().y << std::endl;
                     }
                 }
                 else if (event.key.code == sf::Keyboard::S || event.key.code == sf::Keyboard::Down) {
                     if (sprite.getPosition().y < 720.00) {
-                        sprite.move(0, moveSpeed); // Move down
-                        //std::cout << sprite.getPosition().y << std::endl;
+                        sprite.move(0, moveSpeed); // Move down                 
                     }
                 }
                 else if (event.key.code == sf::Keyboard::A || event.key.code == sf::Keyboard::Left) {
                     if (sprite.getPosition().x > 0.00) {
                         sprite.move(-moveSpeed, 0); // Move left 
-                        //std::cout << sprite.getPosition().x << std::endl;
                     }
                 }
                 else if (event.key.code == sf::Keyboard::D || event.key.code == sf::Keyboard::Right) {
                     if (sprite.getPosition().x < 1280.00) {
                         sprite.move(moveSpeed, 0); // Move right
-                        //std::cout << sprite.getPosition().x << std::endl;
                     }
                 }
 
@@ -565,9 +560,6 @@ int main() {
             }
         }
 
-        //Debug simulating explorer mode
-        //explorerMode = false;     
-        //window.setView(explorerView);
         window.clear();
 
         // Draw the grid as the background
@@ -601,25 +593,21 @@ int main() {
             float desiredWidth = 1.f; // Set width
             float scale = desiredWidth / textureSize.x;
             sprite.setScale(scale, scale); // Apply scaling
-
-            window.draw(sprite); // Draw the sprite in the window
-
         }
         else {
             sf::Vector2u textureSize = spriteTexture.getSize();
             float desiredWidth = 5.f; // Set width
             float scale = desiredWidth / textureSize.x;
             sprite.setScale(scale, scale); // Apply scaling
-
-            window.draw(sprite); // Draw the sprite in the window
+            gui.draw(); // Draw the GUI
         }
 
+        window.draw(sprite); // Draw the sprite in the window
         // Draw the FPS counter in a fixed position
         window.setView(uiView);
         window.draw(fpsText); // Draw the FPS counter on the window
+        //window.draw(sprite); // Draw the sprite in the window
         window.setView(explorerMode ? explorerView : developerView); // Switch back to the main view
-
-        gui.draw(); // Draw the GUI
         window.display();
     }
 
